@@ -8,17 +8,46 @@
 
 struct Extends {
     char *extension;
-    char *commentSing;
+    char *commentSign;
 };
 
 char* getComment(char *ptr, size_t size, size_t index, char ch, FILE *file) {
     while((ch = fgetc(file)) != '\n') {
+        if(ch == EOF) { break; }
+
         size++;
         ptr = realloc(ptr, size);
         ptr[index] = ch;
         index++;
     }
     return &ptr[0];
+}
+
+int verifyComment(char *comment) {
+    char *subStr = strchr(comment, ':');
+    char *todo = malloc(sizeof(char)); //Substring "TODO"
+    int status = 0;
+    char sub[5];
+
+    memset(todo, 0, strlen(todo));
+
+    if(subStr != NULL) {
+        size_t indexSub = (size_t)(subStr - comment); //find the index of the character
+    
+        todo = realloc(todo, (indexSub+1));
+        strncpy(todo, &comment[0], indexSub); //Get the substring
+
+        strncpy(sub, &todo[0], 5);
+        if(!strcmp(sub, "TODO")) {
+            status = 1; 
+        }
+    }
+
+    free(todo);
+    todo = NULL;
+
+    return status;
+    
 }
 
 int main(int argc, char *argv[]) {
@@ -41,14 +70,21 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    char *commentSing;
-    int sizeSing;
+    char *commentSign;
+    int sizeSign;
+    int control = 0;
 
     for(int i=0; i < lenOptions; i++) {
         if(!strcmp(options[i].extension, extensionFile)) {
-            commentSing = options[i].commentSing;
-            sizeSing = strlen(commentSing);
+            commentSign = options[i].commentSign;
+            sizeSign = strlen(commentSign);
+            control = 1;
         }
+    }
+
+    if(!control) {
+        printf("ERROR: files with %s extension are not implemented yet\n", extensionFile);
+        exit(1);
     }
     
 
@@ -60,62 +96,52 @@ int main(int argc, char *argv[]) {
     }
 
     char ch;
-    char *sign, *subStr;
+    char *auxCh = malloc(sizeof(char));
+    char *sign = malloc(sizeof(char));
     char *comment = malloc(sizeof(char));
-    char *todo = malloc(sizeof(char)); //Substring "TODO"
-    char sub[5];
-    size_t sizeComment, index, indexSub;
+    int status;
+    size_t sizeComment, index;
     do {
+        memset(auxCh, 0, strlen(auxCh));
+        memset(sign, 0, strlen(sign));
         memset(comment, 0, strlen(comment)); //Remove all the content of the string
+
         sizeComment = 1, index = 0;
         ch = fgetc(f);
-        if(ch == *commentSing && sizeSing > 1) {
-            strcat(sign, &ch);
+        if(ch == *commentSign && sizeSign > 1) {
+            auxCh[0] = ch; //We pass the char into an auxiliar bc we can't concat char(int) with a literal str
+            strcat(sign, auxCh);
 
             ch = fgetc(f);
-            strcat(sign, &ch);
+            auxCh[0] = ch;
+            sign = realloc(sign, 2);
+            strcat(sign, auxCh);
 
-            if(!strcmp(sign, commentSing)) {
+            if(!strcmp(sign, commentSign)) {
                 comment = getComment(comment, sizeComment, index, ch, f);
-                subStr = strchr(comment, ':');
-                //printf("81: %s", subStr); 
+                status = verifyComment(comment);
 
-                if(subStr != NULL) {
-                    indexSub = (size_t)(subStr - comment); //find the index of the character
-                    
-                    memset(todo, 0, strlen(todo));
-                    todo = realloc(todo, (indexSub+1));
-                    strncpy(todo, &comment[0], indexSub); //Get the substring
-
-                    strncpy(sub, &todo[0], 5);
-                    if(!strcmp(sub, "TODO")) {
-                        printf("%s\n", comment);
-                    }
+                if(status) {
+                    printf("%s\n", comment);
                 }
 
             }
-        } else if(ch == *commentSing) {
+        } else if(ch == *commentSign) {
             comment = getComment(comment, sizeComment, index, ch, f);
+            status = verifyComment(comment);
 
-            //TODO: make this whole block of code a function (101-114)
-            subStr = strchr(comment, ':');
-            //printf("81: %s", subStr); 
-
-            if(subStr != NULL) {
-                indexSub = (size_t)(subStr - comment); //find the index of the character
-                
-                memset(todo, 0, strlen(todo));
-                todo = realloc(todo, (indexSub+1));
-                strncpy(todo, &comment[0], indexSub); //Get the substring
-
-                strncpy(sub, &todo[0], 5);
-                if(!strcmp(sub, "TODO")) {
-                    printf("%s\n", comment);
-                }
+            if(status) {
+                printf("%s\n", comment);
             }
         }
 
     } while(ch != EOF);
+
+
+    free(comment);
+    free(auxCh);
+    free(sign);
+    auxCh, sign, comment = NULL;
 
     fclose(f);
     
