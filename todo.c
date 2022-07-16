@@ -6,10 +6,15 @@
 
 //TODO: Realizar de forma recursiva para todos los archivos de un directorio
 
-struct Extends {
+typedef struct Extend {
     char *extension;
     char *commentSign;
-};
+} Extend;
+
+typedef struct fComments {
+    char *comment;
+    size_t lvlPriority;
+} fComments;
 
 char* getComment(char *ptr, size_t size, size_t index, char ch, FILE *file) {
     while((ch = fgetc(file)) != '\n') {
@@ -23,31 +28,72 @@ char* getComment(char *ptr, size_t size, size_t index, char ch, FILE *file) {
     return &ptr[0];
 }
 
-int verifyComment(char *comment) {
+fComments verifyComment(char *comment) {
     char *subStr = strchr(comment, ':');
     char *todo = malloc(sizeof(char)); //Substring "TODO"
-    int status = 0;
+    char *totalComment = malloc(sizeof(char));
     char sub[5];
+    fComments data;
 
     memset(todo, 0, strlen(todo));
+    memset(totalComment, 0, strlen(todo));
 
     if(subStr != NULL) {
         size_t indexSub = (size_t)(subStr - comment); //find the index of the character
-    
-        todo = realloc(todo, (indexSub+1));
+        size_t lenOfComment = strlen(comment) - (indexSub+2);
+
+        todo = realloc(todo, indexSub);
         strncpy(todo, &comment[0], indexSub); //Get the substring
 
-        strncpy(sub, &todo[0], 5);
+        totalComment = realloc(totalComment, lenOfComment); //Get the whole comment without "TODO" and ": "
+        strncpy(totalComment, &comment[indexSub+2], lenOfComment);
+
+        strncpy(sub, &todo[0], 4);
         if(!strcmp(sub, "TODO")) {
-            status = 1; 
+            size_t priority = strlen(todo) - strlen(sub);
+
+            strcpy(data.comment, totalComment);
+            data.lvlPriority = priority;
+
+        } else { //if exists ':' into the comment but is not a 'TODO:'
+            data.comment = "";
+            data.lvlPriority = 100; 
         }
+
+    } else {
+        data.comment = "";
+        data.lvlPriority = 100;
     }
 
     free(todo);
-    todo = NULL;
+    free(totalComment);
+    todo, totalComment = NULL;
 
-    return status;
+    return data;
     
+}
+
+void getTotalData(fComments aux, char **totalComments, size_t *priority, int *countData, size_t *indexData) { 
+
+    if(aux.lvlPriority < 100)  {
+        *countData = *countData + 1;
+
+        totalComments = realloc(totalComments, sizeof(char*) * (*countData));
+
+        if(totalComments == NULL) {
+            printf("No allocated\n");
+            exit(1);
+        }
+
+        totalComments[*indexData] = malloc(sizeof(char) * strlen(aux.comment));
+        priority = realloc(priority, sizeof(size_t) * (*countData));
+
+        strcpy(totalComments[*indexData], aux.comment);
+        priority[*indexData] = aux.lvlPriority; //doesn't work
+
+        *indexData = *indexData + 1;
+    }
+
 }
 
 int main(int argc, char *argv[]) {
@@ -57,7 +103,7 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    struct Extends options[4] = {
+    Extend options[4] = {
         {".py", "#"}, {".c", "//"},
         {".js", "//"}, {".cpp", "//"}
     };
@@ -81,11 +127,6 @@ int main(int argc, char *argv[]) {
             control = 1;
         }
     }
-
-    if(!control) {
-        printf("ERROR: files with %s extension are not implemented yet\n", extensionFile);
-        exit(1);
-    }
     
 
     FILE *f = fopen(argv[1], "r");
@@ -95,12 +136,21 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
+    if(!control) {
+        printf("ERROR: files with %s extension are not implemented yet\n", extensionFile);
+        exit(1);
+    }
+
     char ch;
     char *auxCh = malloc(sizeof(char));
     char *sign = malloc(sizeof(char));
     char *comment = malloc(sizeof(char));
-    int status;
-    size_t sizeComment, index;
+    size_t sizeComment, index, indexData = 0;
+    int countData = 0;
+
+    char **totalComments = calloc(sizeof(char*), 1);
+    size_t *priority = calloc(sizeof(size_t), 1);
+    fComments aux;
     do {
         memset(auxCh, 0, strlen(auxCh));
         memset(sign, 0, strlen(sign));
@@ -119,29 +169,40 @@ int main(int argc, char *argv[]) {
 
             if(!strcmp(sign, commentSign)) {
                 comment = getComment(comment, sizeComment, index, ch, f);
-                status = verifyComment(comment);
+                aux = verifyComment(comment);
 
-                if(status) {
-                    printf("%s\n", comment);
-                }
+                getTotalData(aux, totalComments, priority, &countData, &indexData);
+                memset(&aux, 0, sizeof(aux)); //Reset the auxiliar structure
 
             }
         } else if(ch == *commentSign) {
             comment = getComment(comment, sizeComment, index, ch, f);
-            status = verifyComment(comment);
+            aux = verifyComment(comment);
 
-            if(status) {
-                printf("%s\n", comment);
-            }
+            getTotalData(aux, totalComments, priority, &countData, &indexData);
+            memset(&aux, 0, sizeof(aux));
         }
 
     } while(ch != EOF);
 
+    //Show all the comments with their level of priority
+    for(size_t x=0; x < indexData; x++) {
+        printf("%s (lvl: %ld)\n", totalComments[x], priority[x]);
+    }
+    
+    int y = 0;
+    while(y < indexData) {
+        free(totalComments[y]);
+        totalComments[y] = NULL;
+        y++;
+    }
 
+    free(totalComments);
+    free(priority);
     free(comment);
     free(auxCh);
     free(sign);
-    auxCh, sign, comment = NULL;
+    auxCh, sign, comment, totalComments, priority = NULL;
 
     fclose(f);
     
