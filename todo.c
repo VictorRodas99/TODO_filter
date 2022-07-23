@@ -39,7 +39,7 @@ fComments verifyComment(char *comment) {
     memset(totalComment, 0, strlen(todo));
 
     if(subStr != NULL) {
-        size_t indexSub = (size_t)(subStr - comment); //find the index of the character
+        size_t indexSub = (size_t)(subStr - comment); //finds the index of the character
         size_t lenOfComment = strlen(comment) - (indexSub+2);
 
         todo = realloc(todo, indexSub);
@@ -47,6 +47,7 @@ fComments verifyComment(char *comment) {
 
         totalComment = realloc(totalComment, lenOfComment); //Get the whole comment without "TODO" and ": "
         strncpy(totalComment, &comment[indexSub+2], lenOfComment);
+        strcat(totalComment, "\0");
 
         strncpy(sub, &todo[0], 4);
         if(!strcmp(sub, "TODO")) {
@@ -55,7 +56,7 @@ fComments verifyComment(char *comment) {
             strcpy(data.comment, totalComment);
             data.lvlPriority = priority;
 
-        } else { //if exists ':' into the comment but is not a 'TODO:'
+        } else { //if exists ':' in the comment but is not a 'TODO:'
             data.comment = "";
             data.lvlPriority = 100; 
         }
@@ -73,7 +74,7 @@ fComments verifyComment(char *comment) {
     
 }
 
-void getTotalData(fComments aux, char **totalComments, size_t *priority, int *countData, size_t *indexData) { 
+void getTotalData(fComments aux, char **totalComments, size_t **priority, int *countData, size_t *indexData) { 
 
     if(aux.lvlPriority < 100)  {
         *countData = *countData + 1;
@@ -86,14 +87,14 @@ void getTotalData(fComments aux, char **totalComments, size_t *priority, int *co
         }
 
         totalComments[*indexData] = malloc(sizeof(char) * strlen(aux.comment));
-        priority = realloc(priority, sizeof(size_t) * (*countData));
+        *priority = realloc(*priority, sizeof(size_t) * (*countData)); //Segmentation fault --
 
         strcpy(totalComments[*indexData], aux.comment);
-        priority[*indexData] = aux.lvlPriority; //doesn't work
+        *priority[*indexData] = aux.lvlPriority;
 
         *indexData = *indexData + 1;
-    }
 
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -146,10 +147,10 @@ int main(int argc, char *argv[]) {
     char *sign = malloc(sizeof(char));
     char *comment = malloc(sizeof(char));
     size_t sizeComment, index, indexData = 0;
-    int countData = 0;
+    int countData = 1;
 
-    char **totalComments = calloc(sizeof(char*), 1);
-    size_t *priority = calloc(sizeof(size_t), 1);
+    char **totalComments = calloc(1, sizeof(char*));
+    size_t *priority = calloc(1, sizeof(size_t));
     fComments aux;
     do {
         memset(auxCh, 0, strlen(auxCh));
@@ -169,17 +170,18 @@ int main(int argc, char *argv[]) {
 
             if(!strcmp(sign, commentSign)) {
                 comment = getComment(comment, sizeComment, index, ch, f);
-                aux = verifyComment(comment);
+                aux = verifyComment(comment); 
 
-                getTotalData(aux, totalComments, priority, &countData, &indexData);
+                getTotalData(aux, totalComments, &priority, &countData, &indexData);
+
                 memset(&aux, 0, sizeof(aux)); //Reset the auxiliar structure
-
             }
         } else if(ch == *commentSign) {
             comment = getComment(comment, sizeComment, index, ch, f);
             aux = verifyComment(comment);
 
-            getTotalData(aux, totalComments, priority, &countData, &indexData);
+            getTotalData(aux, totalComments, &priority, &countData, &indexData);
+
             memset(&aux, 0, sizeof(aux));
         }
 
